@@ -138,7 +138,8 @@ namespace Colso.DataTransporter.AppCode
                     SetProgress((i + missingCount) / totalTaskCount, "Transfering entity '{0}'...", name);
 
                     // BC 22/11/2016: some attributes are auto added in the result query
-                    RemoveUnwantedAttributes(record);
+                    // Also sets missing attributes that are null in the source data.
+                    EnsureCorrectAttributes(record);
 
                     if (recordexist && ((transfermode & TransferMode.Update) == TransferMode.Update))
                     {
@@ -347,7 +348,7 @@ namespace Colso.DataTransporter.AppCode
             OnProgress(this, new ProgressEventArgs(progress, string.Format(format, args)));
         }
 
-        private void RemoveUnwantedAttributes(Entity entity)
+        private void EnsureCorrectAttributes(Entity entity)
         {
             // Make sure only selected attributes are send
             var unwantedattributes = entity.Attributes.Where(ae => !this.attributes.Any(a => a.LogicalName.Equals(ae.Key))).Select(ae => ae.Key).ToArray();
@@ -355,6 +356,13 @@ namespace Colso.DataTransporter.AppCode
             // Remove unwanted attributes
             foreach (var att in unwantedattributes)
                 entity.Attributes.Remove(att);
+
+            // Add missing attributes so that they're set to null in updates.
+            foreach (var attr in this.attributes)
+            {
+                if (!entity.Contains(attr.LogicalName))
+                    entity[attr.LogicalName] = null;
+            }
         }
     }
 }
